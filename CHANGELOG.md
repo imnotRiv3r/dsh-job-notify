@@ -2,6 +2,19 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.3.0] - 2026-11-11
+
+### 新增
+
+- agent 通过 `ask_user_question` 等你选择时发送「需要你选择」通知：正文带会话名、第一个问题和问题总数。
+- 工具调用等待审批时发送「需要你批准」通知：正文带会话名、工具名和审批原因。
+- 配置项 `notifyQuestions`、`notifyApprovals`，两者默认开启，可独立关闭。
+
+### 变更
+
+- 问题通知通过 `user-questions/request` waterfall 以只读观察者接入，始终 `next()` 委托，不回答也不拦截问题。
+- 审批通知读取 `approval/asked` 会话事件，不改变审批结果。
+
 ## [1.2.0] - 2026-11-11
 
 ### 新增

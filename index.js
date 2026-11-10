@@ -12,12 +12,14 @@
  */
 import z from '@deepseek-ai/schemastery'
 import {
+  approvalAttention,
   buildJobToast,
   buildTurnToast,
   elapsed,
   extractAssistantText,
   normalizeConfig,
   outcomeOf,
+  questionAttention,
   TURN_REASONS,
   turnErrorMessage,
 } from './lib/format.js'
@@ -38,6 +40,16 @@ export const inject = ['jobs']
 export const Config = z.object({
   enabled: z.boolean().default(true).volatile().description('总开关：关闭后不发送任何通知。'),
   notifyTurnEnd: z.boolean().default(true).volatile().description('每轮对话结束时提醒。'),
+  notifyQuestions: z
+    .boolean()
+    .default(true)
+    .volatile()
+    .description('agent 通过 ask_user_question 需要你选择时提醒。'),
+  notifyApprovals: z
+    .boolean()
+    .default(true)
+    .volatile()
+    .description('工具调用需要你批准时提醒。'),
   onCompleted: z.boolean().default(true).volatile().description('后台任务完成时提醒。'),
   onFailed: z.boolean().default(true).volatile().description('后台任务失败或异常退出时提醒。'),
   onKilled: z.boolean().default(true).volatile().description('后台任务被停止时提醒。'),
@@ -93,10 +105,12 @@ export function apply(ctx, config) {
   const disposeTurns = settings.notifyTurnEnd
     ? installTurnEndReporter(ctx, settings, enqueue)
     : undefined
+  const disposeAttention = installAttentionReporter(ctx, settings, enqueue)
 
   ctx.effect(() => () => {
     unsubscribe()
     disposeTurns?.()
+    disposeAttention()
     queue.close()
   })
 }
@@ -185,6 +199,50 @@ function installTurnEndReporter(ctx, settings, enqueue) {
     if (typeof offEvent === 'function') offEvent()
     lastText.clear()
     turnStarted.clear()
+  }
+}
+
+/**
+ * Attention notifications: the agent is blocked waiting for the user, which is
+ * more urgent than a finished turn.
+ *
+ * Questions arrive on the `user-questions/request` waterfall; this listener is
+ * an observer only and always delegates with `next()`, so it can never answer
+ * or veto the question. Approvals are recorded as `approval/asked` Session
+ * events, which are read-only and therefore cannot affect the decision.
+ */
+function installAttentionReporter(ctx, settings, enqueue) {
+  const disposers = []
+
+  if (settings.notifyApprovals) {
+    const off = ctx.on('session/event', (session, event) => {
+      if (session === null || session === undefined || event === null || event === undefined) return
+      if (event.type !== 'approval/asked') return
+      try {
+        enqueue(approvalAttention(settings, sessionTitleOf(ctx, session), event.data))
+      } catch (error) {
+        ctx.logger.warn(`job-notify: approval notification failed: ${String(error)}`)
+      }
+    })
+    disposers.push(off)
+  }
+
+  if (settings.notifyQuestions) {
+    const off = ctx.on('user-questions/request', (request, next) => {
+      try {
+        const session = request !== null && request !== undefined ? request.agent?.session : undefined
+        const title = session === undefined || session === null ? 'DeepSeek Harness' : sessionTitleOf(ctx, session)
+        enqueue(questionAttention(settings, title, request))
+      } catch (error) {
+        ctx.logger.warn(`job-notify: question notification failed: ${String(error)}`)
+      }
+      return next()
+    })
+    disposers.push(off)
+  }
+
+  return () => {
+    for (const off of disposers) if (typeof off === 'function') off()
   }
 }
 

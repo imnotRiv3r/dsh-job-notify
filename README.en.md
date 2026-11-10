@@ -20,6 +20,7 @@ DeepSeek Harness models shell commands, subagents, and workflows as background j
 |---|---|---|
 | **Background job** | An unawaited `run_in_background` shell job settles | on |
 | **Conversation turn** | One turn of your own Session ends | on |
+| **Decision needed** | The agent calls `ask_user_question`, or a tool call waits for approval | on |
 
 Both can be switched off independently. Foreground commands, jobs an agent is still waiting on, and cancelled turns stay quiet.
 
@@ -51,6 +52,13 @@ The body is a join of the enabled parts: label (up to 140 characters), exit code
 
 > [!IMPORTANT]
 > DSH's shell producers report a non-zero exit as `status: completed` with `detail: "exit code: N"`, not as `failed`. The plugin therefore decides success from the exit code; otherwise a failed build would be announced as "completed".
+
+### A decision is needed
+
+- **需要你选择** (answer needed): a blocked `ask_user_question`. The body carries the Session name and the first question; a batch is labelled with its count.
+- **需要你批准** (approval needed): a tool call waiting for approval. The body carries the Session name, tool name, and reason.
+
+Each request notifies once; answering or approving it does not trigger a repeat. Both kinds can be disabled independently.
 
 ---
 
@@ -110,6 +118,8 @@ You can also override the row by id:
 |---|---|---|
 | `enabled` | `true` | Master switch; off means no event subscriptions |
 | `notifyTurnEnd` | `true` | Notify when a conversation turn ends |
+| `notifyQuestions` | `true` | Notify when the agent waits on `ask_user_question` |
+| `notifyApprovals` | `true` | Notify when a tool call waits for approval |
 | `onCompleted` | `true` | Notify when a background job completes |
 | `onFailed` | `true` | Notify on failure or non-zero exit |
 | `onKilled` | `true` | Notify when a job is stopped |
@@ -136,6 +146,7 @@ flowchart LR
 
 - **Jobs**: `ctx.jobs.events.subscribe({ owners: 'all' }, …)` handles `settled`, skips `cause: 'teardown'`, and honors `awaited`.
 - **Turns**: `ctx.on('session/event', …)` records `turn/start`, caches the last assistant text, and decides on `turn/end`. Only `completed`, `error`, and `max-tokens` notify.
+- **Decisions**: questions arrive on the `user-questions/request` waterfall; the plugin observes and always delegates with `next()`. Approvals arrive as `approval/asked` Session events, which are read-only.
 - **Delivery**: one Windows PowerShell 5.1 process per toast. PowerShell 7 lacks the WinRT projection required by `Windows.UI.Notifications`. The payload travels as base64 JSON so command lines stay pure ASCII and Chinese text survives the console code page.
 - **AUMID**: the toast uses `com.deepseek.dsh`, which the Harness desktop already registered, so it appears as **DeepSeek Harness**.
 - **Volatile config**: the Host builds editable forms from volatile nodes only. A non-volatile field would make the settings section disappear silently, so every field is `.volatile()`.
@@ -162,6 +173,7 @@ flowchart LR
 | Title shows `dshWorkspace` | No session title yet; it falls back to the folder name until the first title is generated |
 | Turn body says "本轮已完成" | The last assistant message had no text block (tool-only turn); this is the intended fallback |
 | No turn notifications | Check `notifyTurnEnd`; subagent and workflow sessions never notify |
+| No notification when the agent asks or waits for approval | Check `notifyQuestions` / `notifyApprovals`; subagents cannot start human interaction, so DSH rejects those requests |
 | Foreground commands notify | `skipAwaited` is `false` |
 | Notifications are delayed | Delivery is serial and each toast may take up to 10 seconds; the queue holds at most 8 entries |
 | Code changes do not apply | Host reloads through HMR; refresh the page for the client half, or restart Harness |

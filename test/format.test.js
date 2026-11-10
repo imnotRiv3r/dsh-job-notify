@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   appIdOf,
+  approvalAttention,
+  buildAttentionToast,
   buildJobToast,
   buildTurnToast,
   compact,
@@ -11,6 +13,7 @@ import {
   normalizeConfig,
   outcomeOf,
   plainText,
+  questionAttention,
   turnErrorMessage,
 } from '../lib/format.js'
 
@@ -144,4 +147,35 @@ test('buildTurnToast omits an empty body and appends the duration', () => {
     body: '',
     appId: 'com.deepseek.dsh',
   })
+})
+
+test('questionAttention describes the first question and counts the rest', () => {
+  const settings = normalizeConfig({})
+  assert.deepEqual(questionAttention(settings, '会话标题', { questions: [{ question: '选哪个方案？' }] }), {
+    title: '需要你选择',
+    body: '会话标题 · 选哪个方案？',
+    appId: 'com.deepseek.dsh',
+  })
+  const multi = questionAttention(settings, '会话', {
+    questions: [{ question: 'A？' }, { question: 'B？' }],
+  })
+  assert.match(multi.body, /共 2 个问题/)
+  assert.equal(questionAttention(settings, '会话', {}).body, '会话 · 打开 Harness 回答问题')
+})
+
+test('approvalAttention includes the tool and reason', () => {
+  const settings = normalizeConfig({})
+  assert.deepEqual(approvalAttention(settings, '会话', { toolName: 'pwsh', reason: '删除文件' }), {
+    title: '需要你批准',
+    body: '会话 · 工具：pwsh · 删除文件',
+    appId: 'com.deepseek.dsh',
+  })
+  assert.equal(approvalAttention(settings, '会话', {}).body, '会话 · 工具：工具操作')
+})
+
+test('buildAttentionToast clamps its body', () => {
+  const settings = normalizeConfig({})
+  const toast = buildAttentionToast(settings, '需要你选择', ['会话', 'x'.repeat(400)])
+  assert.ok(toast.body.length <= 200)
+  assert.ok(toast.body.endsWith('…'))
 })

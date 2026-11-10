@@ -204,6 +204,20 @@ window.__ModuleLoader__.load({
           onChange: next => write('notifyTurnEnd', next),
         }),
         h(Toggle, {
+          text: '需要你选择时',
+          hint: 'agent 通过 ask_user_question 等你回答时提醒。',
+          checked: value.notifyQuestions !== false,
+          disabled: !writable,
+          onChange: next => write('notifyQuestions', next),
+        }),
+        h(Toggle, {
+          text: '需要你批准时',
+          hint: '工具调用等待你审批时提醒。',
+          checked: value.notifyApprovals !== false,
+          disabled: !writable,
+          onChange: next => write('notifyApprovals', next),
+        }),
+        h(Toggle, {
           text: '只提醒后台任务',
           hint: '前台命令、以及 agent 正在等待的任务保持安静；不影响对话轮次提醒。',
           checked: value.skipAwaited !== false,

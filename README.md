@@ -41,6 +41,7 @@ DSH 把 shell 命令、子代理、workflow 都建模成后台任务，但不会
 |---|---|---|
 | **后台任务** | 后台任务结算时（shell 的 `run_in_background` 是最常见来源） | 开 |
 | **整轮对话** | 你自己这条会话的某一轮结束时 | 开 |
+| **需要你决策** | agent 调用 `ask_user_question`，或工具调用等待你审批时 | 开 |
 
 两类通知可以独立开关。前台命令、agent 正在等待的任务，以及你取消/打断的对话轮次都不会打扰你。
 
@@ -79,6 +80,15 @@ DSH 把 shell 命令、子代理、workflow 都建模成后台任务，但不会
 > [!IMPORTANT]
 > DSH 的 shell 工具把非零退出码报告成 `status: completed` + `detail: "exit code: N"`，而不是 `failed`。所以插件按**退出码**判断成败，否则失败的任务会被显示成「已完成」。
 
+### 需要你决策
+
+agent 停下来等你时，通知会明确区分两种场景：
+
+- **需要你选择**：`ask_user_question` 等待你回答。正文是会话名 + 第一个问题；一次问多个问题时标注总数。
+- **需要你批准**：工具调用等待审批。正文是会话名 + 工具名 + 审批原因。
+
+问题和审批都只通知一次；你回答或批准后不会重复提醒。两类通知可以分别关闭。
+
 ---
 
 ## 功能一览
@@ -87,6 +97,7 @@ DSH 把 shell 命令、子代理、workflow 都建模成后台任务，但不会
 - **按结果分类**：完成、异常退出、启动失败、被停止，四种标题一眼区分。
 - **可读的正文**：任务标签 + 退出码/失败原因 + 耗时，全部可单独关闭。
 - **对话轮次提醒**：会话标题 + 回答节选，回答里的 Markdown 会被清理成适合通知展示的纯文本。
+- **决策提醒**：agent 卡在问题或审批上时，单独发一条「需要你选择 / 需要你批准」。
 - **图形化配置**：插件详情页直接勾选，写入 profile 的 `cordis.patch.yml`，不必手改 YAML。
 - **复用 Harness 的 AUMID**：通知来源显示为 DeepSeek Harness，并复用系统里已注册的通知图标。
 - **有界发送**：串行队列、单条 10 秒超时、最多积压 8 条，避免任务风暴把 PowerShell 进程打爆。
@@ -180,6 +191,8 @@ DSH 把 shell 命令、子代理、workflow 都建模成后台任务，但不会
 |---|---|---|
 | `enabled` | `true` | 总开关；关闭后不订阅任何事件 |
 | `notifyTurnEnd` | `true` | 每轮对话结束时提醒 |
+| `notifyQuestions` | `true` | agent 通过 `ask_user_question` 等你回答时提醒 |
+| `notifyApprovals` | `true` | 工具调用等待你审批时提醒 |
 | `onCompleted` | `true` | 后台任务完成时提醒 |
 | `onFailed` | `true` | 后台任务失败 / 异常退出时提醒 |
 | `onKilled` | `true` | 后台任务被停止时提醒 |
@@ -237,6 +250,23 @@ ctx.on('session/event', (session, event) => {
 `turn/end` 的 `reason.kind` 可能是 `completed`、`error`、`max-tokens`、`aborted`、`blocked`、`hook`、`idle`、`maintenance`。只通知前三种：取消、阻塞、维护、hook 等都不是「有结果可看」的结束。
 
 用 `session/event` 而不是 `agent/status`（running → idle）的原因：`turn/end` 带结束原因，能区分「正常完成」和「用户取消」，也能拿到这一轮到底说了什么。
+
+**需要你决策**
+
+```js
+// 问题：只读观察，始终 next() 委托，不回答也不拦截
+ctx.on('user-questions/request', (request, next) => {
+  notify(request.questions)
+  return next()
+})
+
+// 审批：读取会话事件，不改变审批结果
+ctx.on('session/event', (session, event) => {
+  if (event.type === 'approval/asked') notify(event.data)
+})
+```
+
+问题走 `user-questions/request` waterfall；插件只是旁听者，必须把决定交还给真正的回答方。审批走 `approval/asked` 审计事件，同样只读。
 
 ### 通知发送
 
@@ -312,6 +342,7 @@ enabled: z.boolean().default(true).volatile().description('总开关：关闭后
 | **标题显示成 `dshWorkspace`** | `sessionTitle` 还没生成标题，退回目录名；新会话发第一条消息后就会正常 |
 | **对话通知正文是「本轮已完成」** | 该轮最后一条 assistant 消息没有文本块（例如只调用了工具），属正常回退 |
 | **只有后台任务通知，没有对话通知** | 检查 `notifyTurnEnd`；子代理 / workflow 会话本来就不通知 |
+| **agent 提问或审批时没收到通知** | 检查 `notifyQuestions` / `notifyApprovals`；子代理不能发起人机交互，这类请求本身会被 DSH 拒绝 |
 | **前台命令也弹通知** | `skipAwaited` 被设成了 `false` |
 | **通知延迟很久** | 队列串行发送，每条最多 10 秒；大量任务同时结算时会排队，最多积压 8 条 |
 | **改了代码没生效** | Host 半靠 HMR 重载 bundle；浏览器半需要刷新页面；必要时重启 Harness |
