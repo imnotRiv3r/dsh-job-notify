@@ -152,6 +152,7 @@ flowchart LR
 | Symptom | Cause and fix |
 |---|---|
 | No notifications at all | Enable notifications for DeepSeek Harness in Windows Settings; Focus Assist / Do Not Disturb suppresses toasts |
+| No banner while a video or game is fullscreen | Windows suppresses toasts over fullscreen apps; the notification usually still lands in the Action Center (`Win + N`). Settings → System → Focus Assist → Automatic rules → "When I'm using an app in full screen mode" → Off. Exclusive-fullscreen players may still cover it |
 | Source shows "Windows PowerShell" | `appId` was changed to an unregistered value; restore `com.deepseek.dsh` |
 | Settings section is blank | Check that every `Config` field is `.volatile()` |
 | Title shows `dshWorkspace` | No session title yet; it falls back to the folder name until the first title is generated |

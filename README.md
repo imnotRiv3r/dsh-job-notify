@@ -306,6 +306,7 @@ enabled: z.boolean().default(true).volatile().description('总开关：关闭后
 | 现象 | 原因与处理 |
 |---|---|
 | **完全不弹通知** | 先看系统设置：设置 → 系统 → 通知 → DeepSeek Harness 是否开启；专注助手 / 勿扰模式会压掉通知 |
+| **全屏看视频/游戏时不弹横幅** | Windows 会抑制全屏应用上的通知横幅，通知通常仍进入通知中心（`Win + N` 可见）。设置 → 系统 → 专注助手 → 自动规则 → “当我正在全屏模式下使用应用时” → 关闭；部分独占全屏播放器仍可能遮挡 |
 | **通知来源显示「Windows PowerShell」** | `appId` 被改成了未注册的值；改回 `com.deepseek.dsh`，或注册自己的 AUMID |
 | **配置区空白** | 检查 `Config` 字段是否都挂了 `.volatile()`（见上文） |
 | **标题显示成 `dshWorkspace`** | `sessionTitle` 还没生成标题，退回目录名；新会话发第一条消息后就会正常 |
