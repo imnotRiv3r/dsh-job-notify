@@ -112,7 +112,7 @@ DSH 把 shell 命令、子代理、workflow 都建模成后台任务，但不会
 1. 把仓库克隆到本地任意目录，例如 `E:\dshWorkspace\dsh-job-notify`：
 
    ```powershell
-   git clone https://github.com/<your-account>/dsh-job-notify.git E:\dshWorkspace\dsh-job-notify
+   git clone https://github.com/imnotRiv3r/dsh-job-notify.git E:\dshWorkspace\dsh-job-notify
    ```
 
 2. 进入插件目录安装依赖（只有 `@deepseek-ai/schemastery`）：

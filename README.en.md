@@ -68,7 +68,7 @@ The body is a join of the enabled parts: label (up to 140 characters), exit code
 1. Clone the repository and install its single runtime dependency:
 
    ```powershell
-   git clone https://github.com/<your-account>/dsh-job-notify.git E:\dshWorkspace\dsh-job-notify
+   git clone https://github.com/imnotRiv3r/dsh-job-notify.git E:\dshWorkspace\dsh-job-notify
    cd E:\dshWorkspace\dsh-job-notify
    npm install --omit=dev --no-package-lock
    ```

@@ -118,17 +118,11 @@ gh repo create dsh-job-notify --public --source . --remote origin --push
 
 ---
 
-## 4. 替换仓库占位信息
+## 4. 仓库地址
 
-README 里的克隆地址目前是占位符：
+本仓库已经指向 `imnotRiv3r/dsh-job-notify`。如果你 fork 后重新发布，把中英文 README 里的克隆地址和 `package.json` 的 `repository` 换成你的用户名即可。
 
-```
-https://github.com/<your-account>/dsh-job-notify.git
-```
-
-上传后，用编辑器全局搜索 `<your-account>`，替换成你的 GitHub 用户名。中英文 README 各有一处。
-
-可选：在 `package.json` 里补上仓库元数据（`npm` 和部分工具会读取）：
+`package.json` 里已经包含仓库元数据（`npm` 和部分工具会读取）：
 
 ```json
 "repository": {

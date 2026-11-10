@@ -5,6 +5,14 @@
   "type": "module",
   "description": "Windows 原生通知：后台任务结算或一轮对话结束时提醒（DeepSeek Harness 插件）",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imnotRiv3r/dsh-job-notify.git"
+  },
+  "homepage": "https://github.com/imnotRiv3r/dsh-job-notify#readme",
+  "bugs": {
+    "url": "https://github.com/imnotRiv3r/dsh-job-notify/issues"
+  },
   "keywords": [
     "deepseek-harness",
     "dsh",
