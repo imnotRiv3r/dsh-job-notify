@@ -7,7 +7,7 @@ The agent stops on a choice while you are watching a show.**
 
 This native Windows notification does one job: bring you back when it matters.
 
-<img src="docs/toast-job.png" alt="Background job notification" width="720">
+<img src="docs/toast-job-real.png" alt="Background job notification" width="720">
 
 <sub>Real Windows notification screenshot: a background job exited non-zero. The notification text is Chinese.</sub>
 
@@ -60,7 +60,7 @@ The body has three optional parts: label (up to 140 characters), exit code or fa
 
 ### Conversation turn
 
-<img src="docs/toast-turn.png" alt="Turn notification" width="720">
+<img src="docs/toast-turn-real.png" alt="Turn notification" width="720">
 
 <sub>Real screenshot: the title is the Session name; the body is an excerpt of the last answer.</sub>
 
