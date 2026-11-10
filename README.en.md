@@ -2,44 +2,49 @@
 
 [简体中文](README.md) | [English](README.en.md)
 
-**Native Windows notifications for DeepSeek Harness when a background job settles or a conversation turn ends.**
+**The build finishes while you are refilling your coffee.  
+The agent stops on a choice while you are watching a show.**
 
-[![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)](#limitations)
-[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-%E2%89%A50.2.0--rc.1-4D6BFE)](https://github.com/deepseek-ai/deepseek-harness)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+This native Windows notification does one job: bring you back when it matters.
 
-DeepSeek Harness models shell commands, subagents, and workflows as background jobs, but never tells you when one finishes. This plugin subscribes to the jobs registry and the session event stream, then shows a toast through Windows PowerShell 5.1's WinRT `ToastNotificationManager`. It reuses the Harness desktop AppUserModelID, so notifications appear as **DeepSeek Harness** instead of "Windows PowerShell".
+<img src="docs/toast-job.png" alt="Background job notification" width="720">
 
-> Verified against DeepSeek Harness Desktop `0.2.2-rc.1`; declares compatibility with `>=0.2.0-rc.1 <0.3.0-0`. Windows only.
+<sub>Real Windows notification screenshot: a background job exited non-zero. The notification text is Chinese.</sub>
 
 ---
 
-## What it does
+## Four moments that call you back
 
-| Notification | Trigger | Default |
+| Moment | What the notification carries | Default |
 |---|---|---|
-| **Background job** | An unawaited `run_in_background` shell job settles | on |
-| **Conversation turn** | One turn of your own Session ends | on |
-| **Decision needed** | The agent calls `ask_user_question`, or a tool call waits for approval | on |
+| A background job completes | command, elapsed time | on |
+| A background job fails / exits non-zero | command, exit code, elapsed time | on |
+| The agent waits for your choice | Session name, question, question count | on |
+| A tool waits for your approval | Session name, tool, reason | on |
 
-Both can be switched off independently. Foreground commands, jobs an agent is still waiting on, and cancelled turns stay quiet.
+Plus one "this turn is done" notification: Session name + an excerpt of the last answer.
 
-### A turn ends
+---
 
-![Turn notification](docs/toast-turn.png)
+## When it stays quiet
 
-<sub>Real Windows notification screenshot from the demo session: the title is the Session name; the body is an excerpt of the last answer.</sub>
+| Scenario | Why it is quiet |
+|---|---|
+| Foreground shell commands | Their caller is waiting; not unclaimed background work |
+| A job an agent is awaiting with `job_output(wait: true)` | `awaited` is true |
+| Cancelled / interrupted turns | The turn ended as `aborted`; nothing new to read |
+| Subagent and workflow sessions | Their turns are not your conversation |
+| Teardown settlements | Not finished user work |
 
-- **Title**: the Session title from the Host's `sessionTitle` service, falling back to the workspace folder name
-- **Body**: an excerpt (about 200 characters) of the last assistant answer, with Markdown syntax stripped
-- **Duration**: wall-clock time from `turn/start` to `turn/end`
-- **Skipped**: cancelled and interrupted turns; subagent sessions (`origin: "subagent"`), including workflow subtasks that run as subagents
+The rule is `awaited === false`: **only work nobody is waiting for deserves a ping**. A slow foreground command stays silent.
 
-### A background job settles
+---
 
-![Job notification](docs/toast-job.png)
+## What it looks like
 
-<sub>Real Windows notification screenshot: the title reflects the outcome; the body carries the label, exit code, and elapsed time.</sub>
+### Background job
+
+The title reflects the outcome; the body carries the command, exit code, and elapsed time.
 
 | Title | Meaning |
 |---|---|
@@ -48,63 +53,105 @@ Both can be switched off independently. Foreground commands, jobs an agent is st
 | `后台任务失败` (failed) | The process never started, or the producer threw |
 | `后台任务已停止` (stopped) | Killed by `job_kill` or session archive |
 
-The body is a join of the enabled parts: label (up to 140 characters), exit code or failure reason, and elapsed time.
+The body has three optional parts: label (up to 140 characters), exit code or failure reason, elapsed time.
 
 > [!IMPORTANT]
-> DSH's shell producers report a non-zero exit as `status: completed` with `detail: "exit code: N"`, not as `failed`. The plugin therefore decides success from the exit code; otherwise a failed build would be announced as "completed".
+> DSH's shell producers report a non-zero exit as `status: completed` with `detail: "exit code: N"`, not as `failed`. The plugin decides success from the exit code; otherwise a failed build would be announced as "completed".
+
+### Conversation turn
+
+<img src="docs/toast-turn.png" alt="Turn notification" width="720">
+
+<sub>Real screenshot: the title is the Session name; the body is an excerpt of the last answer.</sub>
+
+- **Title**: the Session title, falling back to the workspace folder name
+- **Body**: an excerpt of the last assistant answer, with Markdown stripped
+- **Duration**: wall-clock time from `turn/start` to `turn/end`
+- **Skipped**: cancelled/interrupted turns; subagent sessions (`origin: "subagent"`)
 
 ### A decision is needed
 
-- **需要你选择** (answer needed): a blocked `ask_user_question`. The body carries the Session name and the first question; a batch is labelled with its count.
+- **需要你选择** (answer needed): a blocked `ask_user_question`. The body carries the Session name, the first question, and the batch count.
 - **需要你批准** (approval needed): a tool call waiting for approval. The body carries the Session name, tool name, and reason.
 
-Each request notifies once; answering or approving it does not trigger a repeat. Both kinds can be disabled independently.
-
----
-
-## Requirements
-
-| Item | Requirement |
-|---|---|
-| OS | Windows 10 / 11 |
-| Harness | DeepSeek Harness Desktop `>= 0.2.0-rc.1`, `< 0.3.0` |
-| Runtime | The Node.js bundled with Harness |
-| Notifications | DeepSeek Harness allowed in Settings → System → Notifications |
+The plugin only observes: questions arrive on the `user-questions/request` waterfall and are always delegated with `next()`; approvals are read from the `approval/asked` audit event. It never answers for you or changes the outcome.
 
 ---
 
 ## Install
 
-> The `@local` scope is only a local label. This project is not published to npm; install it from a local directory, so no registry is involved.
+| Item | Requirement |
+|---|---|
+| OS | Windows 10 / 11 |
+| Harness | DeepSeek Harness Desktop ≥ `0.2.0-rc.1`, < `0.3.0` |
+| Notifications | DeepSeek Harness allowed in Windows Settings |
+| Runtime | The Node.js bundled with Harness |
 
-1. Clone the repository and install its single runtime dependency:
+```powershell
+git clone https://github.com/imnotRiv3r/dsh-job-notify.git E:\dshWorkspace\dsh-job-notify
+cd E:\dshWorkspace\dsh-job-notify
+npm install --omit=dev --no-package-lock
+```
 
-   ```powershell
-   git clone https://github.com/imnotRiv3r/dsh-job-notify.git E:\dshWorkspace\dsh-job-notify
-   cd E:\dshWorkspace\dsh-job-notify
-   npm install --omit=dev --no-package-lock
-   ```
+Then in Harness: **Plugins → Add plugin → choose the local directory**.
 
-   `link:` plugins do not get dependencies installed by pnpm automatically, so the plugin directory needs its own `node_modules`. `pnpm install --prod` works too.
+The plugin manager writes the bundle into the profile's `dsh.profile.bundles`. The Host half activates immediately; the settings section appears after the next page load.
 
-2. In Harness, open **Plugins → Add plugin** and choose the local directory.
+Verify by asking the agent to run `Start-Sleep -Seconds 5` in the background.
 
-3. The plugin manager writes the bundle into the profile's `dsh.profile.bundles`. The Host half activates immediately; the settings section appears on the next page load.
+> The `@local` scope is only a local label; the project is not published to npm. `link:` plugins do not get dependencies installed automatically, so the directory needs its own `node_modules`.
 
-4. Verify by asking the agent to start a background command such as `Start-Sleep -Seconds 5`.
+<details>
+<summary>Manual profile install</summary>
+
+```json
+{
+  "dependencies": {
+    "@local/dsh-job-notify": "link:E:/dshWorkspace/dsh-job-notify"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@local/dsh-job-notify"]
+    }
+  }
+}
+```
+
+Restart Harness. The bundle's `cordis.patch.yml` inserts the `job-notify` row.
+
+</details>
 
 > [!NOTE]
-> The plugin is linked to its directory. Do not delete or move it while it is installed. Host changes reload through HMR; the browser half needs a page refresh.
+> The plugin is linked to its directory. Do not delete or move it while installed. Host changes reload through HMR; refresh the page for the browser half.
 
 ---
 
 ## Configuration
 
-Open **Plugins → Background job notifications**; the settings section is rendered directly under the bundle description. Edits are written to the profile's `cordis.patch.yml`.
+Open **Plugins → Background job notifications**; the section renders directly in the detail page. Edits are written to the profile's `cordis.patch.yml`.
 
-![Plugin settings](docs/plugins-config.png)
+<img src="docs/plugins-config.png" alt="Plugin settings" width="720">
 
-You can also override the row by id:
+<sub>Real settings page, v1.3.0.</sub>
+
+| Field | Default | Meaning |
+|---|---|---|
+| `enabled` | `true` | Master switch; off means no subscriptions |
+| `notifyTurnEnd` | `true` | Notify when a conversation turn ends |
+| `notifyQuestions` | `true` | Notify when the agent waits on `ask_user_question` |
+| `notifyApprovals` | `true` | Notify when a tool call waits for approval |
+| `onCompleted` | `true` | Notify when a background job completes |
+| `onFailed` | `true` | Notify on failure or non-zero exit |
+| `onKilled` | `true` | Notify when a job is stopped |
+| `skipAwaited` | `true` | Only unawaited jobs; `false` also notifies foreground commands |
+| `showLabel` | `true` | Show the job label |
+| `showDuration` | `true` | Show elapsed time for jobs and turns |
+| `showExitCode` | `true` | Show the exit code or failure reason |
+| `appId` | `com.deepseek.dsh` | AppUserModelID used by the toast |
+
+`appId` accepts letters, digits, dots, underscores, and hyphens up to 128 characters; invalid values fall back to the default.
+
+Manual override:
 
 ```yaml
 - id: job-notify
@@ -114,115 +161,101 @@ You can also override the row by id:
     showLabel: false
 ```
 
-| Field | Default | Meaning |
-|---|---|---|
-| `enabled` | `true` | Master switch; off means no event subscriptions |
-| `notifyTurnEnd` | `true` | Notify when a conversation turn ends |
-| `notifyQuestions` | `true` | Notify when the agent waits on `ask_user_question` |
-| `notifyApprovals` | `true` | Notify when a tool call waits for approval |
-| `onCompleted` | `true` | Notify when a background job completes |
-| `onFailed` | `true` | Notify on failure or non-zero exit |
-| `onKilled` | `true` | Notify when a job is stopped |
-| `skipAwaited` | `true` | Only notify unawaited jobs; `false` also notifies foreground commands |
-| `showLabel` | `true` | Show the job label in the body |
-| `showDuration` | `true` | Show elapsed time for jobs and turns |
-| `showExitCode` | `true` | Show the exit code or failure reason |
-| `appId` | `com.deepseek.dsh` | AppUserModelID used by the toast |
-
-`appId` accepts letters, digits, dots, underscores, and hyphens up to 128 characters; invalid values fall back to `com.deepseek.dsh`.
-
 ---
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  J["jobs registry<br/>jobs.events `settled`"] --> Q["serial queue<br/>limit 8 · 10s each"]
-  S["Session events<br/>turn/start · assistant/message · turn/end"] --> Q
-  T["sessionTitle.get(session)"] --> Q
-  Q --> P["toast.ps1<br/>Windows PowerShell 5.1"]
+  J["Job settled<br/>jobs.events"] --> F{Should notify?}
+  T["Turn ended<br/>session/event"] --> F
+  Q["Question<br/>user-questions/request"] --> F
+  A["Approval<br/>approval/asked"] --> F
+  F -->|quiet| X["Stay silent"]
+  F -->|notify| Q2["Serial queue<br/>limit 8 · 10s each"]
+  Q2 --> P["toast.ps1<br/>Windows PowerShell 5.1"]
   P --> W["Windows notification center"]
 ```
 
-- **Jobs**: `ctx.jobs.events.subscribe({ owners: 'all' }, …)` handles `settled`, skips `cause: 'teardown'`, and honors `awaited`.
-- **Turns**: `ctx.on('session/event', …)` records `turn/start`, caches the last assistant text, and decides on `turn/end`. Only `completed`, `error`, and `max-tokens` notify.
-- **Decisions**: questions arrive on the `user-questions/request` waterfall; the plugin observes and always delegates with `next()`. Approvals arrive as `approval/asked` Session events, which are read-only.
-- **Delivery**: one Windows PowerShell 5.1 process per toast. PowerShell 7 lacks the WinRT projection required by `Windows.UI.Notifications`. The payload travels as base64 JSON so command lines stay pure ASCII and Chinese text survives the console code page.
-- **AUMID**: the toast uses `com.deepseek.dsh`, which the Harness desktop already registered, so it appears as **DeepSeek Harness**.
-- **Volatile config**: the Host builds editable forms from volatile nodes only. A non-volatile field would make the settings section disappear silently, so every field is `.volatile()`.
+- **Jobs**: subscribe to `settled`, skip `cause: 'teardown'`, honor `awaited`.
+- **Turns**: only `completed`, `error`, and `max-tokens` turn reasons notify.
+- **Questions / approvals**: observe only; never answer or alter the decision.
+- **Delivery**: one Windows PowerShell 5.1 process per notification. The payload travels as base64 JSON so command lines stay pure ASCII. A serial queue bounds the work, and each call times out after 10 seconds.
+- **AUMID**: reuses Harness's registered `com.deepseek.dsh`, so the source appears as **DeepSeek Harness**.
+
+<details>
+<summary>Why every config field is <code>.volatile()</code></summary>
+
+The Host builds editable forms from volatile nodes only. A non-volatile field makes the whole settings section disappear silently. Every `Config` field is `.volatile()`, and `apply` reads it through `.get()`.
+
+</details>
 
 ---
 
-## Privacy and security
+## Privacy
 
-- No network access, no credential reads, no telemetry.
-- Notification text comes from local sessions: titles, answer excerpts, commands, exit codes. It becomes part of the Windows notification history, so treat sensitive workspaces accordingly.
-- The plugin runs `toast.ps1` with `-ExecutionPolicy Bypass`. The script only shows a toast; it has no network or file operations and can be audited.
-- No administrator rights and no changes to system notification settings.
+- No network requests, no credential reads.
+- Notification text comes from local sessions: titles, answer excerpts, commands, exit codes. It becomes part of Windows notification history.
+- The plugin runs a local PowerShell script with `-ExecutionPolicy Bypass`; the script only shows notifications.
+- Settings edits only touch the current profile's `cordis.patch.yml`.
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Cause and fix |
+| Symptom | Fix |
 |---|---|
-| No notifications at all | Enable notifications for DeepSeek Harness in Windows Settings; Focus Assist / Do Not Disturb suppresses toasts |
-| No banner while a video or game is fullscreen | Windows suppresses toasts over fullscreen apps; the notification usually still lands in the Action Center (`Win + N`). Settings → System → Focus Assist → Automatic rules → "When I'm using an app in full screen mode" → Off. Exclusive-fullscreen players may still cover it |
-| Source shows "Windows PowerShell" | `appId` was changed to an unregistered value; restore `com.deepseek.dsh` |
-| Settings section is blank | Check that every `Config` field is `.volatile()` |
-| Title shows `dshWorkspace` | No session title yet; it falls back to the folder name until the first title is generated |
-| Turn body says "本轮已完成" | The last assistant message had no text block (tool-only turn); this is the intended fallback |
+| No notifications at all | Allow DeepSeek Harness notifications in Windows Settings; Focus Assist / Do Not Disturb suppresses them |
+| No banner while a video/game is fullscreen | Windows suppresses toasts over fullscreen apps; use `Win + N` for the notification center, or switch the player to windowed/borderless fullscreen |
+| Settings section is blank | Make sure every `Config` field is `.volatile()` |
+| Title shows the workspace folder | No Session title yet; it falls back to the folder name |
 | No turn notifications | Check `notifyTurnEnd`; subagent and workflow sessions never notify |
-| No notification when the agent asks or waits for approval | Check `notifyQuestions` / `notifyApprovals`; subagents cannot start human interaction, so DSH rejects those requests |
 | Foreground commands notify | `skipAwaited` is `false` |
-| Notifications are delayed | Delivery is serial and each toast may take up to 10 seconds; the queue holds at most 8 entries |
-| Code changes do not apply | Host reloads through HMR; refresh the page for the client half, or restart Harness |
-| `toast failed` in the log | Usually PowerShell blocked by security software, or notifications disabled by policy |
+| No question/approval notifications | Check `notifyQuestions` / `notifyApprovals`; subagents cannot start human interaction |
+| Code changes do not apply | Host reloads via HMR; refresh the page, or restart Harness |
 
 ---
 
 ## Limitations
 
-- Windows only. The plugin stays idle elsewhere instead of failing.
+- Windows only; the plugin stays idle elsewhere.
 - Notification text is Chinese only.
-- Clicking a toast does not focus the Harness window (would require a COM activator).
+- Clicking a toast does not focus Harness (would require a COM activator).
 - Toasts are plain text; Markdown is stripped, not rendered.
-- The settings section relies on Harness internals (`plugins.bundle.config`, `configForms`) and may need adaptation across major Harness versions.
-- Notification history is retained by Windows, outside the plugin's control.
+- Exclusive fullscreen cannot be covered; system mute cannot be bypassed.
+- The settings section relies on Harness internals and may need adaptation across major versions.
 - The plugin is linked to its directory; deleting it breaks the link.
 
 ---
 
 ## Development
 
-```powershell
-npm run check   # node --check
-npm test        # node:test
-```
-
 | Path | Purpose |
 |---|---|
-| `index.js` | Host entry: Config schema, event wiring, turn reporter |
+| `index.js` | Host entry: Config, event wiring, turn and decision notifications |
 | `lib/format.js` | Pure formatting and decision helpers |
 | `lib/toast.js` | PowerShell runner and bounded serial queue |
 | `client.js` | Browser half: settings section |
 | `toast.ps1` | WinRT toast sender |
-| `test/` | Unit tests with `node:test` |
+| `test/` | `node:test` unit tests |
 
-Tests neither require Harness nor show real toasts: the process call is injectable and the queue is exercised with a fake runner.
+```powershell
+npm run check
+npm test
+```
 
----
+Manual toast:
 
-## Publishing
-
-See [docs/PUBLISHING.md](docs/PUBLISHING.md) for the first-time GitHub setup (repository creation, push, placeholder replacement, release tagging).
+```powershell
+$payload = @{ title = 'Test'; body = 'From dsh-job-notify'; appId = 'com.deepseek.dsh' } | ConvertTo-Json -Compress
+$encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($payload))
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\toast.ps1 -PayloadBase64 $encoded
+```
 
 ---
 
 ## License
 
 [MIT](LICENSE)
-
----
 
 <sub>Not affiliated with DeepSeek. DeepSeek Harness is a trademark of its respective owner.</sub>
