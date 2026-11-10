@@ -7,7 +7,7 @@ agent 停在选项上等你拍板，你在看剧。**
 
 这条 Windows 原生通知只做一件事：在该回来的时候，把你叫回来。
 
-<img src="docs/toast-job-real.png" alt="后台任务通知" width="720">
+<img src="docs/toast-job-shot.png" alt="后台任务通知" width="720">
 
 <sub>真实 Windows 通知截图：后台任务异常退出。</sub>
 
@@ -62,7 +62,7 @@ agent 停在选项上等你拍板，你在看剧。**
 
 ### 一轮对话结束
 
-<img src="docs/toast-turn-real.png" alt="对话结束通知" width="720">
+<img src="docs/toast-turn-shot.png" alt="对话结束通知" width="720">
 
 <sub>真实 Windows 通知截图：标题是会话名，正文是最后一条回答的纯文本节选。</sub>
 
