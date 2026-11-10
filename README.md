@@ -387,12 +387,9 @@ powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\toast.
 
 ## 发布到 GitHub
 
-第一次发布？仓库根目录已经准备好 `.gitignore`、`LICENSE`、`CHANGELOG.md` 和 GitHub Actions CI。完整步骤见 **[docs/PUBLISHING.md](docs/PUBLISHING.md)**，包含：
+本项目已经发布在 **[github.com/imnotRiv3r/dsh-job-notify](https://github.com/imnotRiv3r/dsh-job-notify)**。
 
-- 创建 GitHub 仓库并推送
-- 替换 README 里的仓库地址占位（`<your-account>`），可选补充 `package.json` 的 repository 字段
-- 确认 `node_modules` 没有被提交
-- 打 tag、发 Release
+如果你 fork 后要重新发布，完整步骤见 **[docs/PUBLISHING.md](docs/PUBLISHING.md)**，包含建仓、认证、推送、替换仓库地址、打 tag 和发 Release。
 
 ---
 
