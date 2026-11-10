@@ -7,10 +7,6 @@ agent 停在选项上等你拍板，你在看剧。**
 
 这条 Windows 原生通知只做一件事：在该回来的时候，把你叫回来。
 
-<img src="docs/toast-job-shot.png" alt="后台任务通知" width="720">
-
-<sub>真实 Windows 通知截图：后台任务异常退出。</sub>
-
 ---
 
 ## 四个会被叫回来的时刻
@@ -61,10 +57,6 @@ agent 停在选项上等你拍板，你在看剧。**
 > DSH 的 shell 工具把非零退出码报告成 `status: completed` + `detail: "exit code: N"`，不是 `failed`。所以插件按**退出码**判断成败，否则失败的构建会被说成「已完成」。
 
 ### 一轮对话结束
-
-<img src="docs/toast-turn-shot.png" alt="对话结束通知" width="720">
-
-<sub>真实 Windows 通知截图：标题是会话名，正文是最后一条回答的纯文本节选。</sub>
 
 - **标题**：会话标题；新会话还没生成标题时退回工作区目录名
 - **正文**：本轮最后一条 assistant 回答的节选，Markdown 语法会被剥掉
@@ -139,10 +131,6 @@ npm install --omit=dev --no-package-lock
 ## 配置
 
 **插件 → 后台任务通知**，配置区在详情页直接展开。勾选即时生效，写入 profile 的 `cordis.patch.yml`。
-
-<img src="docs/plugins-config.png" alt="插件配置页" width="720">
-
-<sub>真实设置页截图，v1.3.0。</sub>
 
 ### 字段
 

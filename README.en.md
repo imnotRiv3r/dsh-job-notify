@@ -7,10 +7,6 @@ The agent stops on a choice while you are watching a show.**
 
 This native Windows notification does one job: bring you back when it matters.
 
-<img src="docs/toast-job-shot.png" alt="Background job notification" width="720">
-
-<sub>Real Windows notification screenshot: a background job exited non-zero. The notification text is Chinese.</sub>
-
 ---
 
 ## Four moments that call you back
@@ -59,10 +55,6 @@ The body has three optional parts: label (up to 140 characters), exit code or fa
 > DSH's shell producers report a non-zero exit as `status: completed` with `detail: "exit code: N"`, not as `failed`. The plugin decides success from the exit code; otherwise a failed build would be announced as "completed".
 
 ### Conversation turn
-
-<img src="docs/toast-turn-shot.png" alt="Turn notification" width="720">
-
-<sub>Real screenshot: the title is the Session name; the body is an excerpt of the last answer.</sub>
 
 - **Title**: the Session title, falling back to the workspace folder name
 - **Body**: an excerpt of the last assistant answer, with Markdown stripped
@@ -129,10 +121,6 @@ Restart Harness. The bundle's `cordis.patch.yml` inserts the `job-notify` row.
 ## Configuration
 
 Open **Plugins → Background job notifications**; the section renders directly in the detail page. Edits are written to the profile's `cordis.patch.yml`.
-
-<img src="docs/plugins-config.png" alt="Plugin settings" width="720">
-
-<sub>Real settings page, v1.3.0.</sub>
 
 | Field | Default | Meaning |
 |---|---|---|
