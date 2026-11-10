@@ -1,0 +1,3 @@
+- insert:
+    - id: job-notify
+      name: '@local/dsh-job-notify'

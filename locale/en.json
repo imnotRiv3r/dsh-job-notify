@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Background job notifications",
+    "description": "Native Windows notifications when an unawaited background job settles or a conversation turn ends, leaving foreground commands quiet."
+  }
+}
