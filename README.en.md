@@ -27,6 +27,8 @@ Both can be switched off independently. Foreground commands, jobs an agent is st
 
 ![Turn notification](docs/toast-turn.png)
 
+<sub>Illustration: the title is the Session name; the body is an excerpt of the last answer.</sub>
+
 - **Title**: the Session title from the Host's `sessionTitle` service, falling back to the workspace folder name
 - **Body**: an excerpt (about 200 characters) of the last assistant answer, with Markdown syntax stripped
 - **Duration**: wall-clock time from `turn/start` to `turn/end`
@@ -35,6 +37,8 @@ Both can be switched off independently. Foreground commands, jobs an agent is st
 ### A background job settles
 
 ![Job notification](docs/toast-job.png)
+
+<sub>Illustration: the title reflects the outcome; the body carries the label, exit code, and elapsed time.</sub>
 
 | Title | Meaning |
 |---|---|
