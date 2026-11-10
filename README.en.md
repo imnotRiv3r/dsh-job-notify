@@ -82,7 +82,7 @@ The plugin only observes: questions arrive on the `user-questions/request` water
 ```powershell
 git clone https://github.com/imnotRiv3r/dsh-job-notify.git E:\dshWorkspace\dsh-job-notify
 cd E:\dshWorkspace\dsh-job-notify
-npm install --omit=dev --no-package-lock
+npm install --no-package-lock
 ```
 
 Then in Harness: **Plugins → Add plugin → choose the local directory**.
@@ -91,7 +91,7 @@ The plugin manager writes the bundle into the profile's `dsh.profile.bundles`. T
 
 Verify by asking the agent to run `Start-Sleep -Seconds 5` in the background.
 
-> The `@local` scope is only a local label; the project is not published to npm. `link:` plugins do not get dependencies installed automatically, so the directory needs its own `node_modules`.
+> The `@local` scope is only a local label; the project is not published to npm. Local `link:` installs get `@deepseek-ai/schemastery` from devDependencies, while marketplace installs take it from Harness as a peer dependency.
 
 <details>
 <summary>Manual profile install</summary>

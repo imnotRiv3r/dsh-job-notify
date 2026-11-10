@@ -2,6 +2,13 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.3.1] - 2026-11-11
+
+### 变更
+
+- 将 `@deepseek-ai/schemastery` 从 `dependencies` 移到 `peerDependencies`，并作为本地开发依赖保留；符合 DSH 插件市场对官方包的依赖约定。
+- 安装说明改为 `npm install --no-package-lock`；从市场安装时 peer 由 Harness 提供。
+
 ## [1.3.0] - 2026-11-11
 
 ### 新增

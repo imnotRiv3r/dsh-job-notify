@@ -88,7 +88,7 @@ agent 停在选项上等你拍板，你在看剧。**
 ```powershell
 git clone https://github.com/imnotRiv3r/dsh-job-notify.git E:\dshWorkspace\dsh-job-notify
 cd E:\dshWorkspace\dsh-job-notify
-npm install --omit=dev --no-package-lock
+npm install --no-package-lock
 ```
 
 然后打开 Harness：
@@ -99,7 +99,7 @@ npm install --omit=dev --no-package-lock
 
 验证：让 agent 在后台执行一条命令，比如 `Start-Sleep -Seconds 5`，5 秒后应该弹出通知。
 
-> 包名里的 `@local` 只是本地 scope，本项目不发布到 npm。`link:` 插件不会被 pnpm 自动装依赖，所以插件目录要自带 `node_modules`。
+> 包名里的 `@local` 只是本地 scope，本项目不发布到 npm。本地 `link:` 安装由 devDependencies 提供 `@deepseek-ai/schemastery`；从插件市场安装时它由 Harness 以 peerDependency 提供，不需要单独安装。
 
 <details>
 <summary>手动安装到 profile</summary>
