@@ -75,7 +75,8 @@ The plugin only observes: questions arrive on the `user-questions/request` water
 | Item | Requirement |
 |---|---|
 | OS | Windows 10 / 11 |
-| Harness | DeepSeek Harness Desktop ≥ `0.2.0-rc.1`, < `0.3.0` |
+| Client | Desktop or Web (`dsh web`); the Host must run on Windows |
+| Harness | DeepSeek Harness Desktop or `dsh web`, ≥ `0.2.0-rc.1`, < `0.3.0` |
 | Notifications | DeepSeek Harness allowed in Windows Settings |
 | Runtime | The Node.js bundled with Harness |
 
@@ -88,6 +89,8 @@ npm install --no-package-lock
 Then in Harness: **Plugins → Add plugin → choose the local directory**.
 
 The plugin manager writes the bundle into the profile's `dsh.profile.bundles`. The Host half activates immediately; the settings section appears after the next page load.
+
+The Plugins page is the same in Desktop and `dsh web`: the Web UI is a browser front end, while notifications are emitted by the Host process.
 
 Verify by asking the agent to run `Start-Sleep -Seconds 5` in the background.
 
@@ -213,6 +216,8 @@ The Host builds editable forms from volatile nodes only. A non-volatile field ma
 - Exclusive fullscreen cannot be covered; system mute cannot be bypassed.
 - The settings section relies on Harness internals and may need adaptation across major versions.
 - The plugin is linked to its directory; deleting it breaks the link.
+- `dsh web` emits the toast from the Host process: it works when the Host runs on Windows and you are at that machine; a browser on another device will not receive it.
+- A pure `dsh web` deployment without Desktop may not have registered the `com.deepseek.dsh` AUMID; use a registered AUMID in settings if toasts do not appear.
 
 ---
 

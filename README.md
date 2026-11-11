@@ -79,7 +79,8 @@ agent 停在选项上等你拍板，你在看剧。**
 | 项目 | 要求 |
 |---|---|
 | 系统 | Windows 10 / 11 |
-| Harness | DeepSeek Harness Desktop ≥ `0.2.0-rc.1`，< `0.3.0` |
+| 客户端 | Desktop 或 Web（`dsh web`）；Host 必须运行在 Windows |
+| Harness | DeepSeek Harness Desktop 或 `dsh web` ≥ `0.2.0-rc.1`，< `0.3.0` |
 | 通知 | 系统设置里允许 DeepSeek Harness 通知 |
 | 运行时 | 随 Harness 提供的 Node.js，无需单装 |
 
@@ -96,6 +97,8 @@ npm install --no-package-lock
 **插件 → 添加插件 → 选择本地目录** `E:\dshWorkspace\dsh-job-notify`
 
 插件管理器会把它写进 profile 的 `dsh.profile.bundles`。Host 侧立刻生效，配置页随下一次页面刷新出现。
+
+Desktop 和 `dsh web` 的**插件**页操作相同：Web 版只是把界面放在浏览器里，通知仍由 Host 进程发出。
 
 验证：让 agent 在后台执行一条命令，比如 `Start-Sleep -Seconds 5`，5 秒后应该弹出通知。
 
@@ -273,6 +276,8 @@ Host 半靠 HMR 重载 bundle；浏览器半需要刷新页面；必要时重启
 - 独占全屏无法覆盖；系统静音无法绕过。
 - 配置页依赖 Harness 的 `plugins.bundle.config` 与 `configForms` 内部服务，大版本升级时可能需要适配。
 - 插件是 `link:` 的，删目录会失效。
+- `dsh web` 的通知由 Host 进程发出：Host 跑在 Windows 且你在本机时可用；从其他设备远程访问 Web 时，通知仍在 Host 上，不会出现在浏览器或手机。
+- 纯 `dsh web` 部署（未安装 Desktop）可能没有注册 `com.deepseek.dsh` AUMID；通知不显示时，在配置里改用已注册的 AUMID。
 
 ---
 
