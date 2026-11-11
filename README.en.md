@@ -154,15 +154,15 @@ Manual override:
 ## How it works
 
 ```mermaid
-flowchart LR
-  J["Job settled<br/>jobs.events"] --> F{Should notify?}
-  T["Turn ended<br/>session/event"] --> F
-  Q["Question<br/>user-questions/request"] --> F
-  A["Approval<br/>approval/asked"] --> F
-  F -->|quiet| X["Stay silent"]
-  F -->|notify| Q2["Serial queue<br/>limit 8 · 10s each"]
-  Q2 --> P["toast.ps1<br/>Windows PowerShell 5.1"]
-  P --> W["Windows notification center"]
+graph LR
+  J["Job settled"] --> F{"Should notify?"}
+  T["Turn ended"] --> F
+  Q["Question"] --> F
+  A["Approval"] --> F
+  F -->|"quiet"| X["Stay silent"]
+  F -->|"notify"| R["Serial queue"]
+  R --> P["toast.ps1"]
+  P --> W["Notification center"]
 ```
 
 - **Jobs**: subscribe to `settled`, skip `cause: 'teardown'`, honor `awaited`.

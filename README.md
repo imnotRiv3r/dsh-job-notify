@@ -183,15 +183,15 @@ npm install --no-package-lock
 ## 它怎么工作
 
 ```mermaid
-flowchart LR
-  J["后台任务结算<br/>jobs.events settled"] --> F{该不该提醒}
-  T["一轮对话结束<br/>session/event turn/end"] --> F
-  Q["agent 提问<br/>user-questions/request"] --> F
-  A["工具审批<br/>approval/asked"] --> F
-  F -->|安静| X["不打扰"]
-  F -->|提醒| Q2["串行队列<br/>最多 8 条 · 单条 10s"]
-  Q2 --> P["toast.ps1<br/>Windows PowerShell 5.1"]
-  P --> W["Windows 通知中心"]
+graph LR
+  J["后台任务结算"] --> F{"该不该提醒"}
+  T["一轮对话结束"] --> F
+  Q["agent 提问"] --> F
+  A["工具审批"] --> F
+  F -->|"安静"| X["不打扰"]
+  F -->|"提醒"| R["串行队列"]
+  R --> P["toast.ps1"]
+  P --> W["通知中心"]
 ```
 
 - **后台任务**：订阅 `jobs.events` 的 `settled`，跳过 `cause: 'teardown'`，用 `awaited` 判断是否有人等待。
