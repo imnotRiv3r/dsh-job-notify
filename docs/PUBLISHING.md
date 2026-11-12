@@ -138,7 +138,7 @@ gh repo create dsh-job-notify --public --source . --remote origin --push
 然后：
 
 ```powershell
-git add README.md README.en.md package.json
+git add README.md README.zh-CN.md package.json
 git commit -m "docs: point links at the published repository"
 git push
 ```
