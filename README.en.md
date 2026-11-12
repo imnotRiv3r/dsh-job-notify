@@ -94,7 +94,7 @@ The Plugins page is the same in Desktop and `dsh web`: the Web UI is a browser f
 
 Verify by asking the agent to run `Start-Sleep -Seconds 5` in the background.
 
-> The `@local` scope is only a local label; the project is not published to npm. Local `link:` installs get `@deepseek-ai/schemastery` from devDependencies, while marketplace installs take it from Harness as a peer dependency.
+> The package name `dsh-job-notify` is used for both the npm release and local `link:` installs; the Loader row `name` must match the package name, or the Host fails with `ERR_MODULE_NOT_FOUND`. Local `link:` installs get `@deepseek-ai/schemastery` from devDependencies, while marketplace installs take it from Harness as a peer dependency.
 
 <details>
 <summary>Manual profile install</summary>
@@ -102,11 +102,11 @@ Verify by asking the agent to run `Start-Sleep -Seconds 5` in the background.
 ```json
 {
   "dependencies": {
-    "@local/dsh-job-notify": "link:E:/dshWorkspace/dsh-job-notify"
+    "dsh-job-notify": "link:E:/dshWorkspace/dsh-job-notify"
   },
   "dsh": {
     "profile": {
-      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@local/dsh-job-notify"]
+      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-job-notify"]
     }
   }
 }
@@ -146,7 +146,7 @@ Manual override:
 
 ```yaml
 - id: job-notify
-  name: "@local/dsh-job-notify"
+  name: "dsh-job-notify"
   config:
     notifyTurnEnd: false
     showLabel: false

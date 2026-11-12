@@ -9,16 +9,16 @@
  * the shipped settings pages do.
  */
 window.__ModuleLoader__.load({
-  id: '@local/dsh-job-notify',
+  id: 'dsh-job-notify',
   factory(require) {
     const React = require('react')
     const h = React.createElement
 
-    const BUNDLE = '@local/dsh-job-notify'
+    const BUNDLE = 'dsh-job-notify'
     // The Host keys a settings namespace by the Loader entry's declared id. The
     // row id is `job-notify`; the other spellings only matter for a composition
     // that names the row differently.
-    const NAMESPACES = ['job-notify', BUNDLE, 'include:job-notify']
+    const NAMESPACES = ['job-notify', BUNDLE, '@local/dsh-job-notify', 'include:job-notify']
     const EMPTY_SNAPSHOT = {
       status: 'unavailable',
       value: undefined,

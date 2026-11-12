@@ -2,6 +2,14 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 修复
+
+- Loader 行的 `name` 与包名不一致：`cordis.patch.yml` 里写的是 `@local/dsh-job-notify`，而 `package.json` 已改为 `dsh-job-notify`，导致 Host 侧启动时报 `ERR_MODULE_NOT_FOUND: Cannot find package '@local/dsh-job-notify'`，插件完全无法加载。现改为与包名一致，`link:` 安装与 npm 安装两条路径都恢复可用。
+- 浏览器半的 `__ModuleLoader__.load({ id })` 同步改为包名；配置命名空间查找保留 `@local/dsh-job-notify` 作为兼容别名，旧安装不会丢配置。
+- README 中「本项目不发布到 npm」与实际已发布 `dsh-job-notify@1.3.1` 不符，安装示例里的 `@local/` 前缀一并更正。
+
 ## [1.3.1] - 2026-11-11
 
 ### 变更

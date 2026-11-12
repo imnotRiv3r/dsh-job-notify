@@ -8,7 +8,7 @@
  * AppUserModelID, so it appears as "DeepSeek Harness" instead of a generic
  * PowerShell source.
  *
- * @module @local/dsh-job-notify
+ * @module dsh-job-notify
  */
 import z from '@deepseek-ai/schemastery'
 import {
