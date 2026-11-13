@@ -191,6 +191,46 @@ git push
 
 ---
 
+## 5.5 发到 npm（2026 起需要 2FA）
+
+npm 现在对 `auth-and-writes` 账号强制交互式 2FA，**`npm login --auth-type=web` 拿到的 token 不能发布**，会一直返回：
+
+```
+E403 Two-factor authentication or granular access token with bypass 2fa enabled is required to publish packages.
+```
+
+这时 `--otp=` 也不起作用（错误码不变），因为 web 登录 token 不参与 OTP 校验。两条可用的路：
+
+**方式 A：临时发布 token（最快）**
+
+1. 打开 <https://www.npmjs.com/settings/imnotriv3r/tokens> → **Create token**。
+2. 类型选 **Granular Access Token**，有效期设 **1 天**。
+3. Permissions 选 **Read and write**，Packages 勾 `dsh-job-notify`。
+4. 勾 **Bypass two-factor authentication**（npm 计划 2027 年 1 月才收回这个能力）。
+5. 把 token 写进 `~/.npmrc` 代替旧的行，然后 `npm publish`。
+6. 发完立刻把 token 换回原值，再到网页 revoke 它。
+
+**方式 B：trusted publishing（OIDC，长期方案）**
+
+仓库里放 `.github/workflows/publish.yml`，用 `id-token: write` + `actions/setup-node`，`npm publish --provenance`，不需要任何 token。前提是在 npm 包设置里登记可信发布者：包页 → Settings → **Trusted publishing** → GitHub Actions，owner `imnotRiv3r`、repository `dsh-job-notify`、workflow 文件名。
+
+**发布后不要立刻断言失败**：registry 会先返回
+
+```
+npm notice Your package is being processed and may take a few minutes to become available.
+```
+
+元数据里先出现新版本号，tarball 还要再过几分钟才可下载。用
+
+```powershell
+npm view dsh-job-notify dist-tags
+Invoke-WebRequest -Method Head https://registry.npmjs.org/dsh-job-notify/-/dsh-job-notify-1.3.2.tgz
+```
+
+确认 `latest` 已切换、tarball 返回 200，再让用户升级。
+
+---
+
 ## 常见问题
 
 | 问题 | 处理 |
