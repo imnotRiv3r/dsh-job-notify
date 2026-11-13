@@ -1,3 +1,10 @@
+# Bundle patch layer: inserts the `job-notify` row into the Host composition.
+#
+# `name` must equal package.json's `name` exactly. The Loader imports this
+# string as a module specifier, and only that one package exists in the
+# profile's node_modules. Any other spelling (e.g. the pre-publish local link
+# alias `@local/dsh-job-notify`) makes activation fail with
+# ERR_MODULE_NOT_FOUND for everyone who installs from npm.
 - insert:
     - id: job-notify
       name: 'dsh-job-notify'
