@@ -4,6 +4,22 @@
 
 ## [1.3.2] - 2026-11-13
 
+### 新增
+
+- 浏览器通知（`dsh web`）：Host 通过 `GET /api/job-notify/events` 以 SSE 推送任务与轮次事件，浏览器半弹出系统通知。鉴权复用 Host 的信任围栏，未通过校验的请求拿不到流。
+- 非安全上下文（`http://192.168.x.x:3080` 这类局域网明文地址）下自动退回页面内提示条：这类地址浏览器恒定 `Notification.permission === 'denied'`，任何代码都弹不出系统通知。
+- 配置页新增「浏览器通知」分区，实时显示**当前标签页**的通知状态，未授权时提供「允许通知」按钮（只在用户点击时请求，避免被浏览器判为骚扰）。
+- 新增配置项 `notifyWeb`（默认开）、`webFallback`（默认开）。
+- 页面可见且**有焦点**时，完成类通知不弹；等待决策类照弹。只看 `visibilityState` 不够——被别的窗口盖住时它仍是 `visible`。
+- 新增三组**无需任何权限**的提醒信号，系统通知不可用时一并触发：标签页标题闪烁并显示未读数、Web Audio 合成提示音、Favicon 红点角标。回到标签页时自动复原。
+- 非安全上下文（`http://` 局域网地址）下不再只是静默的提示条：标题闪烁和提示音让后台标签页也能被注意到。
+
+### 变更
+
+- 桌面 Toast 与浏览器通知两条通道互相独立：Host 是 Linux 服务器时只有浏览器通道可用，Windows 桌面没开浏览器时只有 Toast 可用。原先在非 Windows 平台整个插件直接退出，现在只关闭 Toast 通道。
+- 浏览器通道用 `ctx.inject(['webServer', 'connection'])` 注册路由，webServer 晚于插件激活也能挂上（`ctx.get` 在 apply 阶段取不到它）。
+- 新增 `lib/notify-hub.js`（SSE 广播、心跳、客户端上限）与 `buildWebNotification`（把 toast payload 投影成浏览器线格式，含 `tag` 去重）。
+
 ### 修复
 
 - Loader 行的 `name` 与包名不一致：`cordis.patch.yml` 里写的是 `@local/dsh-job-notify`，而 `package.json` 已改为 `dsh-job-notify`，导致 Host 侧启动时报 `ERR_MODULE_NOT_FOUND: Cannot find package '@local/dsh-job-notify'`，插件完全无法加载。现改为与包名一致，`link:` 安装与 npm 安装两条路径都恢复可用。

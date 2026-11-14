@@ -7,12 +7,14 @@
 [![platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4)](#兼容性)
 [![DSH](https://img.shields.io/badge/DSH-%3E%3D0.2.0--rc.1%20%3C0.3.0-6A5ACD)](#兼容性)
 [![node](https://img.shields.io/badge/node-%3E%3D20-339933)](#兼容性)
-[![tests](https://img.shields.io/badge/tests-22%20passing-brightgreen)](test/)
+[![tests](https://img.shields.io/badge/tests-59%20passing-brightgreen)](test/)
 
 **给没人盯着的那些活儿发通知。**
 
 构建在后台跑完，你去倒了杯水；agent 停在选项上等你拍板，你在看剧。
 这个插件只在这些时刻把你叫回来——而你正在等的命令，它一声不响。
+
+两个面都覆盖：**桌面端**弹 Windows 原生 Toast，**浏览器端（`dsh web`）**弹系统通知；浏览器拿不到通知权限时退回页面内提示条。
 
 ---
 
@@ -21,6 +23,7 @@
 - [你会得到什么](#你会得到什么)
 - [什么时候它保持安静](#什么时候它保持安静)
 - [通知长什么样](#通知长什么样)
+- [浏览器端通知（`dsh web`）](#浏览器端通知dsh-web)
 - [安装](#安装)
 - [配置](#配置)
 - [它怎么工作](#它怎么工作)
@@ -176,6 +179,54 @@ Windows 只渲染两行文字：标题和正文。下面是每种通知的真实
 
 ---
 
+## 浏览器端通知（`dsh web`）
+
+与桌面端 Toast 并行的同一组结算事件，还会以 **Server-Sent Events** 推到
+`GET /api/job-notify/events`。浏览器半订阅这个流，按最优可用通道投递：
+
+1. **系统通知** —— 页面是安全上下文（`https://` 或 `localhost`）且用户已授予
+   `Notification` 权限时。
+2. **页面内提示条** —— 非安全上下文（如 `http://192.168.x.x:3080`）或权限被拒时的回退。
+   提示条出现在 Harness UI 右下角，8 秒后自动消失。
+3. **三组无需权限的提醒信号**（系统通知不可用时一并触发，回到标签页且聚焦后自动复原）：
+   - **标签页标题闪烁** —— `(N) 标题` 与原标题 800 ms 间隔交替。
+   - **Web Audio 自建铃声** —— 三音（C6 → E6 → G6）实时合成，无音频文件依赖；可在插件设置里用
+     `webSound` 开关关掉。
+   - **Favicon 红点角标** —— 右上角画红圆点并写未读数（9 以上显示 `9+`）。
+
+### 页面可见与聚焦判定
+
+只有 `document.visibilityState === 'visible'` **且** `document.hasFocus()` 同时为真，才算
+「用户在盯着」。这条规则只对完成类通知（任务、轮次）生效；等待决策类（提问、审批）无论
+可见性如何都会弹。
+
+### 投递载荷结构
+
+每帧 SSE 是单行 `data: {json}\n\n`，JSON 形如：
+
+```json
+{
+  "kind": "job-completed",
+  "title": "后台任务已完成",
+  "body": "npm run build · 1 分 12 秒",
+  "tag": "job:abc123",
+  "sessionId": "sess_456",
+  "requireInteraction": false,
+  "at": 1731567890123
+}
+```
+
+| 字段 | 作用 |
+|---|---|
+| `kind` | `job-completed` / `job-failed` / `job-killed` / `turn-end` / `attention-question` / `attention-approval` |
+| `title` / `body` | 与 Windows Toast 完全一致的文案 |
+| `tag` | 去重键：同 `tag` 的新通知替换旧通知，不叠加 |
+| `sessionId` | 来源会话 ID（若适用） |
+| `requireInteraction` | 提问与审批为 `true`，需用户手动关闭 |
+| `at` | 事件触发的毫秒时间戳 |
+
+---
+
 ## 安装
 
 ### 前置条件
@@ -291,6 +342,20 @@ Start-Sleep -Seconds 5
 | `showDuration` | `true` | 显示耗时（任务与轮次都生效） |
 | `showExitCode` | `true` | 显示退出码；失败或停止的任务显示失败原因 |
 
+### 浏览器端通知（`dsh web`）
+
+| 字段 | 默认 | 作用 |
+|---|---|---|
+| `notifyWeb` | `true` | 同时通过浏览器 SSE 流投递 |
+| `webFallback` | `true` | 系统通知弹不出时改用页面内提示条 |
+| `webSound` | `true` | 浏览器端提醒时播放自建铃声 |
+
+配置页顶部会实时显示**当前标签页**的通知状态：
+- `granted` —— 系统通知可用
+- `denied` —— 系统通知被拒；提示条 + 三组信号生效
+- `insecure` —— 非安全上下文；仅提示条 + 三组信号可用
+- `prompt` —— 权限未决定；点「允许通知」按钮可请求授权（仅在用户手势下请求，避免被浏览器判为骚扰）
+
 ### 高级
 
 | 字段 | 默认 | 作用 |
@@ -363,18 +428,24 @@ graph TD
   GA -->|丢弃| S
   Q1 --> P["powershell.exe → toast.ps1"]
   P --> W["Windows 通知中心"]
+  Q1 --> H["NotifyHub → SSE /api/job-notify/events"]
+  H --> B["浏览器：系统通知"]
+  H --> F["浏览器：提示条"]
+  F --> A1["标题闪烁"]
+  F --> A2["Web Audio 铃声"]
+  F --> A3["Favicon 角标"]
 ```
 
 ### 事件接线
 
 | 来源 | 判据 | 结果 |
 |---|---|---|
-| `jobs.events`（`owners: 'all'`、`settled`） | `cause !== 'teardown'`；结果开关；`skipAwaited` 时要求 `awaited === false` | 任务通知 |
+| `jobs.events`（`owners: 'all'`、`settled`） | `cause !== 'teardown'`；结果开关；`skipAwaited` 时要求 `awaited === false` | 任务通知 / 浏览器 |
 | `session/event` — `turn/start` | — | 记录本轮开始时间 |
 | `session/event` — `assistant/message` | — | 缓存最后一条 assistant 文本（已剥 Markdown） |
-| `session/event` — `turn/end` | 原因在 `completed` / `error` / `max-tokens` 内；`origin !== 'subagent'` | 轮次通知 |
-| `session/event` — `approval/asked` | `notifyApprovals` | 审批通知 |
-| `user-questions/request` waterfall | `notifyQuestions`；始终 `next()` | 提问通知 |
+| `session/event` — `turn/end` | 原因在 `completed` / `error` / `max-tokens` 内；`origin !== 'subagent'` | 轮次通知 / 浏览器 |
+| `session/event` — `approval/asked` | `notifyApprovals` | 审批通知 / 浏览器 |
+| `user-questions/request` waterfall | `notifyQuestions`；始终 `next()` | 提问通知 / 浏览器 |
 | `session/disposed` | — | 清掉该会话的缓存 |
 
 ### 投递
@@ -382,12 +453,14 @@ graph TD
 1. 通知内容由 `lib/format.js` 的纯函数拼装——不碰 Node API，所以不启动 Harness 也能单测。
 2. 内容进入**有界串行队列**（`lib/toast.js`）：最多 **8** 条等待，满了**丢最旧的**而不是无限
    增长。最新的结算才是你最可能处理的。
-3. 一次只发一条，每条都是一个独立的 Windows PowerShell 5.1 进程——只有这个引擎带
-   `Windows.UI.Notifications` 需要的 WinRT 投影。
+3. **Windows 路径**：一次只发一条，每条都是一个独立的 Windows PowerShell 5.1 进程——
+   只有这个引擎带 `Windows.UI.Notifications` 需要的 WinRT 投影。
 4. 载荷以 **base64 JSON** 走命令行，命令行保持纯 ASCII，中文、引号、`%` 都不受代码页影响。
 5. 脚本填充 `ToastText02` 模板，用配置的 AUMID 调用 `Show()`。
 6. 每次调用有 **10 秒**期限；卡死的 shell 会被杀掉，队列继续往下走。
-7. 插件卸载时关闭队列，丢弃仍在等待的通知。
+7. **浏览器路径**：`NotifyHub`（`lib/notify-hub.js`）持有 SSE 连接（最多 16 个，25 秒心跳）。
+   每帧是单行 `data: {json}\n\n`。浏览器半（`client.js`）自动重连（5 秒退避）。
+8. 插件卸载时关闭队列，hub 关闭全部连接。
 
 失败不会打断链路：队列会记 `toast failed: …` 或
 `toast queue full (8); dropped the oldest notification`，然后继续下一条。
@@ -415,12 +488,14 @@ graph TD
 | 客户端 | Desktop 与 `dsh web` |
 | peer 依赖 | `@deepseek-ai/schemastery >= 3.18.0 < 4.0.0`，从市场安装时由 Harness 提供 |
 
-安装前值得知道的两点：
+安装前值得知道的三点：
 
 - **`dsh web` 由 Host 发通知。** Host 跑在 Windows 且你人在那台机器上时可用；另一台设备上的
   浏览器收不到，通知会出现在 Host 的桌面上。
 - **纯 `dsh web` 部署**（未装 Desktop）可能没有注册 `com.deepseek.dsh` 这个 AUMID。通知一直不
   出现的话，把 `appId` 改成该机器上已注册的 AUMID。
+- **浏览器系统通知需要 HTTPS**（或 `localhost`）。纯 `http://` 局域网地址不是安全上下文——浏览器
+  会把 `Notification.permission` 硬拒成 `denied`，插件自动退回提示条 + 三组信号。
 
 ---
 
@@ -440,6 +515,10 @@ graph TD
 | 日志里出现 `toast failed: …` | PowerShell 被安全软件拦了，或撞上超时 | 查杀毒软件；用下面的命令手动发一条试试 |
 | 插件完全没反应 | Host 不是 Windows，或 `enabled` 为 false | 日志里找 `job-notify: native toasts need Windows` |
 | 启动时报 `ERR_MODULE_NOT_FOUND` | Loader 行的 `name` 与包名不一致 | profile 补丁里用 `name: "dsh-job-notify"` |
+| 浏览器：无系统通知 | 页面是 `http://` 局域网地址（非安全上下文） | 用 `https://`（Cloudflare Tunnel）或 `localhost`；否则提示条是预期行为 |
+| 浏览器：提示条不出现 | `webFallback` 关了 | 设置里打开 `webFallback` |
+| 浏览器：无铃声 | `webSound` 关了 | 设置里打开 `webSound` |
+| 浏览器：权限显示 `granted` 但不弹 | 浏览器策略或需要用户手势 | 在插件设置里点「允许通知」按钮（在用户手势下请求） |
 
 ---
 
@@ -463,8 +542,9 @@ graph TD
 |---|---|
 | `index.js` | Host 入口：`Config`、事件接线、轮次与决策通知 |
 | `lib/format.js` | 纯格式化与判定助手——不碰 Node API |
+| `lib/notify-hub.js` | SSE hub：连接注册表、心跳、客户端上限、帧序列化 |
 | `lib/toast.js` | PowerShell 调用与有界串行队列 |
-| `client.js` | 浏览器半：插件面板里的配置区 |
+| `client.js` | 浏览器半：配置区、系统通知/提示条、三组零权限信号 |
 | `toast.ps1` | WinRT 通知发送器（`ToastText02` 模板） |
 | `locale/` | 插件目录里的标题与描述（`zh`、`en`） |
 | `cordis.patch.yml` | 插入 `job-notify` 行的 bundle 补丁 |
@@ -472,12 +552,13 @@ graph TD
 
 ```powershell
 npm run check   # 对每个源文件做 node --check
-npm test        # node:test —— 22 个用例，不依赖 Harness
+npm test        # node:test —— 59 个用例，不依赖 Harness
 ```
 
 测试不会真的发通知：PowerShell 进程调用与队列 runner 都可注入。覆盖范围包括格式化与截断、
 按退出码判定结果、Markdown 剥离、队列的顺序 / 溢出 / 关闭语义，以及 runner 的退出状态、
-spawn 失败与超时路径。
+spawn 失败与超时路径、SSE hub 的连接生命周期与帧格式、浏览器半的通道检测、权限处理、提示条
+渲染、标题闪烁、铃声合成与 favicon 角标。
 
 手动发一条通知（与插件使用同一套载荷约定）：
 

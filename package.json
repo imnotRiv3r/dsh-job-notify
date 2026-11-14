@@ -42,7 +42,7 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "check": "node --check index.js && node --check client.js && node --check lib/format.js && node --check lib/toast.js",
+    "check": "node --check index.js && node --check client.js && node --check lib/format.js && node --check lib/toast.js && node --check lib/notify-hub.js",
     "test": "node --test"
   },
   "engines": {
@@ -54,6 +54,7 @@
     },
     "client": {
       "platform": "web",
+      "immediately": true,
       "inject": [
         "@deepseek-ai/dsh-client-ui-plugin-manager",
         "@deepseek-ai/dsh-client-ui-settings"

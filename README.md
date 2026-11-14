@@ -7,7 +7,7 @@
 [![platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4)](#compatibility)
 [![DSH](https://img.shields.io/badge/DSH-%3E%3D0.2.0--rc.1%20%3C0.3.0-6A5ACD)](#compatibility)
 [![node](https://img.shields.io/badge/node-%3E%3D20-339933)](#compatibility)
-[![tests](https://img.shields.io/badge/tests-22%20passing-brightgreen)](test/)
+[![tests](https://img.shields.io/badge/tests-59%20passing-brightgreen)](test/)
 
 **Notifications for the work nobody is watching.**
 
@@ -22,6 +22,7 @@ moments — and stays quiet for every command you are actually waiting on.
 - [What you get](#what-you-get)
 - [When it stays quiet](#when-it-stays-quiet)
 - [What the notification looks like](#what-the-notification-looks-like)
+- [Web notifications (dsh web)](#web-notifications-dsh-web)
 - [Install](#install)
 - [Configuration](#configuration)
 - [How it works](#how-it-works)
@@ -184,6 +185,59 @@ never as `1 分 60 秒`.
 
 ---
 
+## Web notifications (dsh web)
+
+The same settlement events that drive the Windows toast are also published as a **Server-Sent
+Event stream** at `GET /api/job-notify/events`. The browser half subscribes to this stream and
+delivers each notification through the best available channel:
+
+1. **System notification** — when the page is a secure context (`https://` or `localhost`) and
+   the user has granted `Notification` permission.
+2. **In-page banner** — fallback for non-secure contexts (e.g. `http://192.168.x.x:3080`) or
+   when permission is denied. The banner appears in the bottom-right corner of the Harness UI.
+3. **Three zero-permission attention signals** (always fire alongside the banner when the
+   system notification is unavailable):
+   - **Tab title blink** — `(N) Tab Title` alternates with the original title.
+   - **Self-made Web Audio chime** — a three-tone sequence (C6 → E6 → G6) synthesized on the
+     fly; no audio file required. Can be disabled via the `webSound` setting.
+   - **Favicon badge** — a red dot with the unread count (`9+` for 9 or more) drawn on the
+     tab icon.
+   All three restore automatically when the tab becomes visible **and** focused.
+
+### Page visibility & focus
+
+A notification is considered "seen" only when `document.visibilityState === 'visible'`
+**and** `document.hasFocus()` are both true. Merely being the active tab behind another
+window is not enough. This rule applies to *completion* notifications (jobs, turns);
+*attention* notifications (questions, approvals) always fire regardless of visibility.
+
+### Delivery shape
+
+Each SSE frame is a JSON object:
+
+```json
+{
+  "kind": "job-completed",
+  "title": "后台任务已完成",
+  "body": "npm run build · 1 分 12 秒",
+  "tag": "job:abc123",
+  "sessionId": "sess_456",
+  "requireInteraction": false,
+  "at": 1731567890123
+}
+```
+
+| Field | Purpose |
+|---|---|
+| `kind` | One of `job-completed`, `job-failed`, `job-killed`, `turn-end`, `attention-question`, `attention-approval` |
+| `title` / `body` | Same text the Windows toast would show |
+| `tag` | Collapses repeats: same `tag` replaces the previous notification |
+| `sessionId` | The originating Session, when applicable |
+| `requireInteraction` | `true` for questions and approvals (stays until dismissed) |
+| `at` | Epoch ms when the event was emitted |
+
+---
+
 ## Install
 
 ### Requirements
@@ -304,6 +358,20 @@ without a restart (the settings section itself needs a page refresh to appear th
 | `showDuration` | `true` | Include elapsed time (jobs and turns) |
 | `showExitCode` | `true` | Include the exit code, or the failure reason for failed/stopped jobs |
 
+### Browser notifications (dsh web)
+
+| Field | Default | Effect |
+|---|---|---|
+| `notifyWeb` | `true` | Also deliver through the browser SSE stream |
+| `webFallback` | `true` | When a system notification cannot be shown, use the in-page banner |
+| `webSound` | `true` | Play the self-made Web Audio chime on browser notifications |
+
+The settings page shows a **live status badge** for the *current tab*:
+- `granted` — system notifications work
+- `denied` — system notifications blocked; banner + attention signals fire
+- `insecure` — non-secure context; only banner + attention signals available
+- `prompt` — permission not decided yet; click "Allow notifications" to request
+
 ### Advanced
 
 | Field | Default | Effect |
@@ -377,18 +445,24 @@ graph TD
   GA -->|drop| S
   Q1 --> P["powershell.exe → toast.ps1"]
   P --> W["Windows notification center"]
+  Q1 --> H["NotifyHub → SSE /api/job-notify/events"]
+  H --> B["Browser: native notification"]
+  H --> F["Browser: fallback banner"]
+  H --> F --> A1["Title blink"]
+  H --> F --> A2["Web Audio chime"]
+  H --> F --> A3["Favicon badge"]
 ```
 
 ### Event wiring
 
 | Source | Gate | Result |
 |---|---|---|
-| `jobs.events` (`owners: 'all'`, `settled`) | `cause !== 'teardown'`; outcome switch; `awaited === false` when `skipAwaited` | Job toast |
+| `jobs.events` (`owners: 'all'`, `settled`) | `cause !== 'teardown'`; outcome switch; `awaited === false` when `skipAwaited` | Job toast / web |
 | `session/event` — `turn/start` | — | Records the turn's start time |
 | `session/event` — `assistant/message` | — | Caches the last assistant text (Markdown stripped) |
-| `session/event` — `turn/end` | Reason in `completed` / `error` / `max-tokens`; `origin !== 'subagent'` | Turn toast |
-| `session/event` — `approval/asked` | `notifyApprovals` | Approval toast |
-| `user-questions/request` waterfall | `notifyQuestions`; always `next()` | Question toast |
+| `session/event` — `turn/end` | Reason in `completed` / `error` / `max-tokens`; `origin !== 'subagent'` | Turn toast / web |
+| `session/event` — `approval/asked` | `notifyApprovals` | Approval toast / web |
+| `user-questions/request` waterfall | `notifyQuestions`; always `next()` | Question toast / web |
 | `session/disposed` | — | Drops that Session's caches |
 
 ### Delivery
@@ -398,13 +472,16 @@ graph TD
 2. Payloads enter a **bounded serial queue** (`lib/toast.js`): at most **8** wait, and a full
    queue **drops the oldest** rather than growing. The newest settlements are the ones you are
    most likely to act on.
-3. One toast at a time, each an independent Windows PowerShell 5.1 process — only that engine
-   ships the WinRT projection `Windows.UI.Notifications` needs.
+3. **Windows path**: one toast at a time, each an independent Windows PowerShell 5.1 process —
+   only that engine ships the WinRT projection `Windows.UI.Notifications` needs.
 4. The payload travels as **base64 JSON** on the command line, so the line stays pure ASCII and
    Chinese text, quotes, or `%` survive regardless of the console code page.
 5. The script fills the `ToastText02` template and calls `Show()` under the configured AUMID.
 6. Each call has a **10 second** deadline; a wedged shell is killed and the queue moves on.
-7. On plugin disposal the queue closes and drops whatever is still pending.
+7. **Browser path**: the `NotifyHub` (`lib/notify-hub.js`) holds open SSE connections (max 16,
+   heartbeat every 25 s). Each frame is a single `data: {json}\n\n` line. The browser half
+   (`client.js`) reconnects automatically (5 s back-off).
+8. On plugin disposal the queue closes and the hub closes all connections.
 
 Failures never break the pipeline: the queue logs `toast failed: …` or `toast queue full (8);
 dropped the oldest notification` and continues with the next payload.
@@ -440,6 +517,9 @@ Two consequences worth knowing before you install:
   the Host's desktop instead.
 - **A bare `dsh web` deployment** without Desktop may not have `com.deepseek.dsh` registered as
   an AUMID. If toasts never appear, set `appId` to an AUMID that is registered on that machine.
+- **System notifications in the browser require HTTPS** (or `localhost`). A plain `http://`
+  LAN address is not a secure context — the browser hard-denies `Notification.permission` and
+  the plugin falls back to the in-page banner.
 
 ---
 
@@ -459,6 +539,10 @@ Two consequences worth knowing before you install:
 | `toast failed: …` in the log | PowerShell blocked by security software, or the deadline hit | Check the antivirus; try running `toast.ps1` manually (below) |
 | Plugin does nothing at all | Host is not Windows, or `enabled` is false | Look for `job-notify: native toasts need Windows` in the log |
 | `ERR_MODULE_NOT_FOUND` on startup | The Loader row's `name` does not match the package name | Use `name: "dsh-job-notify"` in the profile patch |
+| Browser: no system notification | Page is `http://` LAN address (not a secure context) | Use `https://` (Cloudflare Tunnel) or `localhost`; otherwise the banner is expected |
+| Browser: banner never appears | `webFallback` is `false` | Enable `webFallback` in settings |
+| Browser: no chime | `webSound` is `false` | Enable `webSound` in settings |
+| Browser: permission shows `granted` but no popup | Browser policy or user gesture requirement | Click "Allow notifications" in the plugin settings to request in a user gesture |
 
 ---
 
@@ -483,8 +567,9 @@ Two consequences worth knowing before you install:
 |---|---|
 | `index.js` | Host entry: `Config`, event wiring, turn and decision notifications |
 | `lib/format.js` | Pure formatting and decision helpers — no Node APIs |
+| `lib/notify-hub.js` | SSE hub: connection registry, heartbeat, client cap, frame serialization |
 | `lib/toast.js` | PowerShell runner and bounded serial queue |
-| `client.js` | Browser half: the settings section in the Plugins panel |
+| `client.js` | Browser half: settings section, native/banner notifications, attention signals |
 | `toast.ps1` | WinRT toast sender (`ToastText02` template) |
 | `locale/` | Plugin-catalogue title and description (`zh`, `en`) |
 | `cordis.patch.yml` | Bundle patch that inserts the `job-notify` row |
@@ -492,13 +577,15 @@ Two consequences worth knowing before you install:
 
 ```powershell
 npm run check   # node --check on every source file
-npm test        # node:test — 22 cases, no Harness needed
+npm test        # node:test — 59 cases, no Harness needed
 ```
 
 Tests never send a real toast: the PowerShell process call and the queue runner are injectable.
 They cover formatting and truncation, outcome detection from exit codes, Markdown stripping,
-the queue's ordering / overflow / close semantics, and the runner's exit-status, spawn-error and
-timeout paths.
+the queue's ordering / overflow / close semantics, the runner's exit-status, spawn-error and
+timeout paths, the SSE hub's connection lifecycle and frame format, the browser half's channel
+detection, permission handling, banner rendering, title blink, chime synthesis, and favicon
+badge.
 
 Manual toast, using the same payload contract as the plugin:
 
